@@ -27,12 +27,23 @@ jobs:
           pip install -r requirements.txt ruff
 
       - name: 语法检查
-        run: python -m compileall -q search_mcp bridge.py
+        run: python -m compileall -q search_mcp bridge.py tests
+
+      - name: 配置校验（JSON / YAML / compose）
+        run: |
+          python -c "import json; json.load(open('mcp_config.json',encoding='utf-8')); print('mcp_config.json OK')"
+          python -m pip install --quiet pyyaml
+          python -c "
+          import yaml
+          for f in ['searxng/settings.yml','docker-compose.yml',
+                    '.github/workflows/ci.yml','.github/workflows/docker-publish.yml']:
+              yaml.safe_load(open(f,encoding='utf-8')); print(f,'OK')
+          "
 
       - name: Ruff 静态检查
-        run: ruff check search_mcp/search_mcp.py bridge.py || true
+        run: ruff check search_mcp/search_mcp.py bridge.py tests/smoke_test.py || true
 
-      - name: 冒烟测试（工具注册 + 结果格式化 + 错误降级）
+      - name: 冒烟测试（工具注册 + 结果格式化 + 错误降级 + 配置一致性）
         env:
           SEARXNG_URL: http://127.0.0.1:9   # 故意不可达，验证优雅降级
           SEARXNG_TIMEOUT: '3'

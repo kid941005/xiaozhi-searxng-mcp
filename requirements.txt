@@ -2,6 +2,21 @@
 # mcp: 官方 Model Context Protocol SDK（1.x/2.x 均可，代码已做兼容）
 mcp>=1.0.0
 
-# 可选：安装小智官方桥接 SDK（MODE=bridge 时需要）
-# 体积较大且依赖 git，默认不装；需要时取消注释
-# git+https://github.com/dairoot/mcp-calculator
+# ------------------------------------------------------------
+# 可选：小智官方桥接 SDK（仅 MODE=bridge 需要）
+# ------------------------------------------------------------
+# 用途：把本地 stdio MCP 服务通过 WebSocket 接到小智云端接入点。
+#
+# 三种安装方式任选：
+#
+#   1) 本地源码装：
+#        pip install -e .
+#        （或 pip install "git+https://github.com/dairoot/mcp-calculator"）
+#
+#   2) 仅用 HTTP 方式把 MCP 暴露出端口，不经 bridge —— 无需本依赖。
+#
+#   3) 用 Docker：构建时加参数即可，无需改本文件：
+#        docker build --build-arg MCP_BRIDGE_SDK=1 -t xiaozhi-searxng-mcp:bridge .
+#
+# 之所以默认不列在这里：SDK 体积较大且依赖 git，纯搜索场景（MODE=mcp）
+# 装了纯属浪费。见 Dockerfile 的 ARG MCP_BRIDGE_SDK。

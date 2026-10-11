@@ -6,7 +6,7 @@
 #              - MCP_TRANSPORT=stdio → 占 stdin/stdout
 #              - MCP_TRANSPORT=http  → 暴露 8765
 # MODE=bridge  跑小智桥接，把子 MCP 服务接到 MCP_ENDPOINT
-#              （桥接会自己按 mcp_config.json 拉起 search_mcp.py）
+#              （桥接按 MCP_CONFIG / mcp_config.json 拉起 search_mcp.py）
 # ============================================================
 set -e
 
@@ -33,7 +33,11 @@ if [ "$MODE" = "bridge" ]; then
         echo "        从 xiaozhi.me 控制台 → 智能体 → 配置 → 扩展能力 → MCP接入点 获取" >&2
         exit 1
     fi
-    exec python -u -m xiaozhi_mcp
+    # 用 bridge.py 而非 `python -m xiaozhi_mcp`：
+    #   1) 显式设置 MCP_CONFIG，不依赖 cwd
+    #   2) 导入路径正确（main 在 xiaozhi_mcp.pipe）
+    #   3) SDK 缺失时给出可操作的中文提示
+    exec python -u /app/bridge.py "$@"
 else
     exec python -u /app/search_mcp/search_mcp.py \
         --transport "${MCP_TRANSPORT:-stdio}" \

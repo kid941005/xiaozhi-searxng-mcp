@@ -19,12 +19,18 @@ WORKDIR /build
 
 # 编译期依赖（如某些包需要 C 扩展，装完在最终镜像丢弃）
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        gcc build-essential git \
+        gcc build-essential \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
 # 装进独立前缀，便于整目录复制到最终镜像
-RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
+# 注意：MCP_BRIDGE_SDK=1 时才会安装小智桥接 SDK（体积大、依赖 git）
+ARG MCP_BRIDGE_SDK=0
+RUN pip install --no-cache-dir --prefix=/install -r requirements.txt \
+    && if [ "$MCP_BRIDGE_SDK" = "1" ]; then \
+         pip install --no-cache-dir --prefix=/install \
+           "git+https://github.com/dairoot/mcp-calculator"; \
+       fi
 
 
 # ---------- Stage 2: 运行镜像 ----------
@@ -36,21 +42,21 @@ LABEL org.opencontainers.image.title="xiaozhi-searxng-mcp" \
       org.opencontainers.image.licenses="MIT" \
       org.opencontainers.image.source="https://github.com/kid941005/xiaozhi-searxng-mcp"
 
-# git 用于安装 xiaozhi bridge SDK；用后即清，减小体积
-RUN apt-get update && apt-get install -y --no-install-recommends git \
-    && rm -rf /var/lib/apt/lists/*
-
-# 从构建阶段复制已装好的依赖
+# 从构建阶段复制已装好的依赖（含可选的 bridge SDK）
 COPY --from=builder /install /usr/local
 
 WORKDIR /app
 
 # 以非 root 运行（安全）
 RUN useradd -m -u 10001 mcp
-COPY search_mcp/ /app/search_mcp/
-COPY bridge.py /app/bridge.py
-COPY entrypoint.sh /app/entrypoint.sh
-RUN chmod +x /app/entrypoint.sh && chown -R mcp:mcp /app
+
+# 只拷源码，避免带入本地 __pycache__ / .venv 等（.dockerignore 亦已排除）
+COPY --chown=mcp:mcp search_mcp/search_mcp.py /app/search_mcp/search_mcp.py
+COPY --chown=mcp:mcp bridge.py       /app/bridge.py
+COPY --chown=mcp:mcp entrypoint.sh   /app/entrypoint.sh
+COPY --chown=mcp:mcp mcp_config.json /app/mcp_config.json
+
+RUN chmod +x /app/entrypoint.sh
 
 USER mcp
 
@@ -59,6 +65,7 @@ USER mcp
 ENV MCP_TRANSPORT=stdio \
     MCP_HOST=0.0.0.0 \
     MCP_PORT=8765 \
+    MCP_CONFIG=/app/mcp_config.json \
     PYTHONUNBUFFERED=1
 
 EXPOSE 8765

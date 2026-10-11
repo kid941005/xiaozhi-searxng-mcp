@@ -25,6 +25,17 @@
 
 ## 快速开始
 
+### ⚠️ 先看：桥接模式需要额外的桥接 SDK
+
+官方发布的镜像**默认不含**小智桥接 SDK（体积考虑）。
+如果你要用 **`MODE=bridge`**（直连小智音箱），需要自己构建一次：
+
+```bash
+docker build --build-arg MCP_BRIDGE_SDK=1 -t xiaozhi-searxng-mcp:bridge .
+```
+
+若只用 **HTTP 模式**（给 Claude Desktop / Cursor 直连），用官方镜像即可，无需构建。
+
 ### 方式 A：Docker 镜像（推荐）
 
 ```bash
@@ -35,11 +46,12 @@ docker pull ghcr.io/kid941005/xiaozhi-searxng-mcp:latest
 #    xiaozhi.me 控制台 → 智能体 → 配置 → 扩展能力 → MCP接入点
 
 # 3. 起服务（桥接模式，直连小智）
+#    ⚠️ 需先按上面构建带 MCP_BRIDGE_SDK=1 的镜像
 docker run -d --name xiaozhi-search \
   -e MODE=bridge \
   -e MCP_ENDPOINT="wss://api.xiaozhi.me/mcp/?token=你的token" \
   -e SEARXNG_URL="http://你的SearXNG:8080" \
-  ghcr.io/kid941005/xiaozhi-searxng-mcp:latest
+  xiaozhi-searxng-mcp:bridge
 ```
 
 > 桥接模式会自动拉起内部的搜索 MCP 服务并接到小智云端。
@@ -56,8 +68,8 @@ docker compose --profile http up -d       # 只暴露 HTTP，给 Claude/Cursor �
 ```
 
 > **默认从 ghcr.io 拉取镜像，无需本地构建。**
-> 若要本地编译（比如改了源码），把 `docker-compose.yml` 里对应服务的
-> `# build: .` 取消注释，再 `docker compose build` 即可。
+> 若要本地编译（比如改了源码，或需要 bridge SDK），把 `docker-compose.yml` 里
+> 对应服务的 `# build:` 取消注释，再 `docker compose build` 即可。
 
 ### 方式 C：本地源码
 
@@ -159,15 +171,16 @@ curl "http://你的SearXNG/search?q=test&format=json"
 
 | 变量 | 默认 | 说明 |
 |---|---|---|
-| `MODE` | `mcp` | `mcp`=只跑搜索服务；`bridge`=同时接到小智云端 |
+| `MODE` | `mcp` | `mcp`=只跑搜索服务；`bridge`=同时接到小智云端（需桥接 SDK） |
 | `MCP_ENDPOINT` | — | **MODE=bridge 必填**，小智 MCP 接入点 |
+| `MCP_CONFIG` | `/app/mcp_config.json` | 桥接模式的子服务声明文件路径 |
 | `MCP_TRANSPORT` | `stdio` | `stdio` / `http` / `sse` |
 | `MCP_HOST` | `0.0.0.0` | http/sse 监听地址 |
 | `MCP_PORT` | `8765` | http/sse 监听端口 |
 | `SEARXNG_URL` | — | **必填**，SearXNG 地址（容器内不能用 localhost） |
 | `SEARXNG_FORMAT` | `json` | 与 SearXNG `search.formats` 一致 |
 | `SEARXNG_ENGINES` | 空 | 指定引擎，如 `baidu,bing` |
-| `SEARXNG_LANGUAGE` | 空 | 如 `zh-CN` |
+| `SEARXNG_LANGUAGE` | 空 | 如 `zh-CN`；留空用实例默认 |
 | `SEARXNG_TIMEOUT` | `12` | 超时秒数 |
 | `SEARXNG_MAX_RESULTS` | `8` | 单次返回上限（省 token） |
 | `SEARXNG_TOKEN` | 空 | SearXNG 前置鉴权时的 Bearer token |
@@ -231,6 +244,7 @@ stdio 模式（由客户端拉起容器）：
 |---|---|---|
 | **403 Forbidden** | SearXNG 没开 `formats: json` | 改 settings.yml，重启 |
 | **502 / 连接被拒** | 容器内用 `localhost` 指自己 | 用服务名或宿主机 IP |
+| **未安装 xiaozhi_mcp SDK** | 官方镜像默认不含桥接 SDK | 用 `--build-arg MCP_BRIDGE_SDK=1` 自行构建 |
 | **bridge 连不上接入点** | token 不全 / 网络不通 | 完整复制 token；测试 `api.xiaozhi.me` 连通性 |
 | **工具挂上但不调用** | 提示词没强制 | 见「让小智愿意搜索」 |
 | **搜索很慢** | 某些引擎超时 | 关掉连不上的引擎（国内建议关 google） |
@@ -251,15 +265,13 @@ stdio 模式（由客户端拉起容器）：
 python -m compileall -q search_mcp bridge.py
 
 # 冒烟测试（无需 SearXNG）
-SEARXNG_URL=http://127.0.0.1:9 python -c "
-import sys, asyncio; sys.path.insert(0,'search_mcp')
-import search_mcp as s
-print(sorted(t.name for t in asyncio.run(s.mcp.list_tools())))
-print(s.web_search('test', limit=1))  # 应输出「搜索失败：...」
-"
+SEARXNG_URL=http://127.0.0.1:9 python tests/smoke_test.py
 
 # 构建镜像
 docker build -t xiaozhi-searxng-mcp:dev .
+
+# 构建带桥接 SDK 的镜像（MODE=bridge 需要）
+docker build --build-arg MCP_BRIDGE_SDK=1 -t xiaozhi-searxng-mcp:bridge .
 ```
 
 ---

@@ -27,42 +27,30 @@
 #    所以 build 已注释掉，需要本地编译时把对应的 build 行取消注释即可
 #    （取消注释后 image 名会被本地构建产物覆盖，属预期行为）。
 #
-# 用 docker compose build 可只构建不启动。
+# ⚠️ 官方发布的镜像默认【不含】小智桥接 SDK（体积考虑）。
+#    用 profile bridge 时若报「未安装 xiaozhi_mcp SDK」，需自行构建：
+#      docker build --build-arg MCP_BRIDGE_SDK=1 -t xiaozhi-searxng-mcp:bridge .
+#    然后把下面的 image 改成 xiaozhi-searxng-mcp:bridge。
 # ------------------------------------------------------------
 
 services:
 
-  # ---------- MCP 搜索服务：stdio 模式（供 bridge 拉起）----------
-  mcp-stdio:
-    # build: .                                   # 本地构建时取消注释
-    image: ghcr.io/kid941005/xiaozhi-searxng-mcp:latest
-    container_name: xiaozhi-mcp-stdio
-    restart: unless-stopped
-    stdin_open: true          # stdio 模式必须保留 stdin
-    tty: false
-    profiles: ["bridge", "all"]
-    environment:
-      MODE: mcp
-      MCP_TRANSPORT: stdio
-      SEARXNG_URL: ${SEARXNG_URL:-http://searxng:8080}
-      SEARXNG_FORMAT: ${SEARXNG_FORMAT:-json}
-      SEARXNG_LANGUAGE: ${SEARXNG_LANGUAGE:-zh-CN}
-      SEARXNG_TIMEOUT: ${SEARXNG_TIMEOUT:-12}
-      SEARXNG_MAX_RESULTS: ${SEARXNG_MAX_RESULTS:-8}
-      SEARXNG_ENGINES: ${SEARXNG_ENGINES:-}
-
   # ---------- 小智桥接：把 MCP 服务接到 xiaozhi 云端 ----------
+  # 桥接进程会自己按 mcp_config.json 拉起 search_mcp.py 子进程，
+  # 因此【不需要】单独的 mcp-stdio 容器。
   bridge:
-    # build: .                                   # 本地构建时取消注释
+    # build:
+    #   context: .
+    #   args:
+    #     MCP_BRIDGE_SDK: "1"        # 桥接模式必须带上桥接 SDK
     image: ghcr.io/kid941005/xiaozhi-searxng-mcp:latest
     container_name: xiaozhi-mcp-bridge
     restart: unless-stopped
     profiles: ["bridge", "all"]
-    depends_on:
-      - mcp-stdio
     environment:
       MODE: bridge
       MCP_ENDPOINT: ${MCP_ENDPOINT:?请在 .env 中设置 MCP_ENDPOINT}
+      MCP_CONFIG: /app/mcp_config.json
       SEARXNG_URL: ${SEARXNG_URL:-http://searxng:8080}
       SEARXNG_FORMAT: ${SEARXNG_FORMAT:-json}
       SEARXNG_LANGUAGE: ${SEARXNG_LANGUAGE:-zh-CN}
@@ -71,6 +59,7 @@ services:
       SEARXNG_ENGINES: ${SEARXNG_ENGINES:-}
       TZ: Asia/Shanghai
     volumes:
+      # 子服务声明；只读挂载便于随时改而不用重建镜像
       - ./mcp_config.json:/app/mcp_config.json:ro
 
   # ---------- MCP 搜索服务：HTTP 模式（远程客户端直连）----------
