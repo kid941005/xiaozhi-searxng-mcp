@@ -55,6 +55,10 @@ docker compose --profile all up -d        # SearXNG 也一起起
 docker compose --profile http up -d       # 只暴露 HTTP，给 Claude/Cursor 直连
 ```
 
+> **默认从 ghcr.io 拉取镜像，无需本地构建。**
+> 若要本地编译（比如改了源码），把 `docker-compose.yml` 里对应服务的
+> `# build: .` 取消注释，再 `docker compose build` 即可。
+
 ### 方式 C：本地源码
 
 ```bash
