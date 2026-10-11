@@ -1,0 +1,97 @@
+# ============================================================
+# xiaozhi-searxng-mcp 编排文件
+# ============================================================
+# 三种典型用法（按需选用）：
+#
+# ① 只跑桥接，指向你已有的 SearXNG（最常见）
+#    → 用 profile 「bridge」，命令：
+#      docker compose --profile bridge up -d
+#
+# ② SearXNG 也一起起（本机没现成的）
+#    → 用 profile 「all」：
+#      docker compose --profile all up -d
+#
+# ③ 只跑 MCP 服务并暴露 HTTP 端口（给 Claude Desktop / Cursor 直连）
+#    → 用 profile 「http」：
+#      docker compose --profile http up -d
+#
+# 配置写在 .env（从 .env.example 复制）
+# ============================================================
+
+services:
+
+  # ---------- MCP 搜索服务：stdio 模式（供 bridge 拉起）----------
+  mcp-stdio:
+    build: .
+    image: xiaozhi-searxng-mcp:latest
+    container_name: xiaozhi-mcp-stdio
+    restart: unless-stopped
+    stdin_open: true          # stdio 模式必须保留 stdin
+    tty: false
+    profiles: ["bridge", "all"]
+    environment:
+      MODE: mcp
+      MCP_TRANSPORT: stdio
+      SEARXNG_URL: ${SEARXNG_URL:-http://searxng:8080}
+      SEARXNG_FORMAT: ${SEARXNG_FORMAT:-json}
+      SEARXNG_LANGUAGE: ${SEARXNG_LANGUAGE:-zh-CN}
+      SEARXNG_TIMEOUT: ${SEARXNG_TIMEOUT:-12}
+      SEARXNG_MAX_RESULTS: ${SEARXNG_MAX_RESULTS:-8}
+      SEARXNG_ENGINES: ${SEARXNG_ENGINES:-}
+
+  # ---------- 小智桥接：把 MCP 服务接到 xiaozhi 云端 ----------
+  bridge:
+    build: .
+    image: xiaozhi-searxng-mcp:latest
+    container_name: xiaozhi-mcp-bridge
+    restart: unless-stopped
+    profiles: ["bridge", "all"]
+    depends_on:
+      - mcp-stdio
+    environment:
+      MODE: bridge
+      MCP_ENDPOINT: ${MCP_ENDPOINT:?请在 .env 中设置 MCP_ENDPOINT}
+      SEARXNG_URL: ${SEARXNG_URL:-http://searxng:8080}
+      SEARXNG_FORMAT: ${SEARXNG_FORMAT:-json}
+      SEARXNG_LANGUAGE: ${SEARXNG_LANGUAGE:-zh-CN}
+      SEARXNG_TIMEOUT: ${SEARXNG_TIMEOUT:-12}
+      SEARXNG_MAX_RESULTS: ${SEARXNG_MAX_RESULTS:-8}
+      SEARXNG_ENGINES: ${SEARXNG_ENGINES:-}
+      TZ: Asia/Shanghai
+    volumes:
+      - ./mcp_config.json:/app/mcp_config.json:ro
+
+  # ---------- MCP 搜索服务：HTTP 模式（远程客户端直连）----------
+  mcp-http:
+    build: .
+    image: xiaozhi-searxng-mcp:latest
+    container_name: xiaozhi-mcp-http
+    restart: unless-stopped
+    profiles: ["http"]
+    ports:
+      - "${MCP_PORT:-8765}:8765"
+    environment:
+      MODE: mcp
+      MCP_TRANSPORT: http
+      MCP_HOST: 0.0.0.0
+      MCP_PORT: 8765
+      SEARXNG_URL: ${SEARXNG_URL:?请在 .env 中设置 SEARXNG_URL}
+      SEARXNG_FORMAT: ${SEARXNG_FORMAT:-json}
+      SEARXNG_LANGUAGE: ${SEARXNG_LANGUAGE:-zh-CN}
+      SEARXNG_MAX_RESULTS: ${SEARXNG_MAX_RESULTS:-8}
+
+  # ---------- 可选：自建 SearXNG（你已有则可删）----------
+  searxng:
+    image: searxng/searxng:latest
+    container_name: xiaozhi-searxng
+    restart: unless-stopped
+    profiles: ["all"]
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./searxng:/etc/searxng:rw
+    environment:
+      SEARXNG_BASE_URL: http://localhost:8080/
+      SEARXNG_SECRET: ${SEARXNG_SECRET:-change-me-to-a-random-string}
+      TZ: Asia/Shanghai
+    # ⚠️ readiness：settings.yml 的 search.formats 必须含 json，否则 API 403

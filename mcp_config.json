@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "searxng_search": {
+      "command": "python",
+      "args": ["/app/search_mcp/search_mcp.py"],
+      "transport": "stdio",
+      "env": {
+        "SEARXNG_URL": "http://192.168.1.10:8080",
+        "SEARXNG_FORMAT": "json",
+        "SEARXNG_LANGUAGE": "zh-CN",
+        "SEARXNG_TIMEOUT": "12",
+        "SEARXNG_MAX_RESULTS": "8"
+      }
+    }
+  }
+}

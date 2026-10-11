@@ -1,0 +1,28 @@
+# 版本控制与镜像构建排除项
+.git
+.gitignore
+.github
+.venv
+venv
+__pycache__
+*.py[cod]
+*.egg-info
+.pytest_cache
+.mypy_cache
+.ruff_cache
+.env
+.env.*
+!.env.example
+*.log
+*.md.bak
+
+# 本地 SearXNG 实际配置（含 secret_key，务必不要提交）
+searxng/settings.local.yml
+searxng/uwsgi.ini
+
+# 编辑器
+.vscode
+.idea
+*.swp
+.DS_Store
+Thumbs.db

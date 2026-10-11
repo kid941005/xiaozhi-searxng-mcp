@@ -1,0 +1,65 @@
+# ============================================================
+# SearXNG settings.yml —— 为「小智 MCP 搜索」定制的最小可用配置
+# ============================================================
+# 挂载到容器 /etc/searxng/settings.yml
+#
+# ⚠️⚠️ 最大的坑：search.formats 必须包含 json
+#     SearXNG 默认只输出 html，API 请求 format=json 会返回 403 Forbidden。
+#     下面已经开启，不要删。
+#
+# ⚠️ 第二个坑：server.limiter
+#     默认开启限流/bot 检测，容器内的 MCP 客户端会被拦。
+#     局域网自用请关掉（limiter: false）。
+# ============================================================
+
+use_default_settings: true
+
+general:
+  debug: false
+  instance_name: "xiaozhi-search"
+  # 改成你自己的域名/内网地址；纯内网用 false 也行
+  enable_metrics: false
+
+server:
+  # 生成一个随机串替换，防止会话伪造
+  secret_key: "change-me-to-a-random-long-string"
+  base_url: false
+  limiter: false
+  image_proxy: false
+  # 关键：允许容器/局域网内的 MCP 客户端访问
+  public_instance: false
+
+search:
+  # 关键：开启 JSON 输出，否则 API 403
+  safe_search: 0
+  autocomplete: ""
+  default_lang: "zh-CN"
+  formats:
+    - html
+    - json
+
+# ---------------- 引擎选择 ----------------
+# 国内网络环境建议：优先国内可直连的引擎，减少超时
+engines:
+  - name: baidu
+    disabled: false
+  - name: bing
+    disabled: false
+  - name: duckduckgo
+    disabled: false
+  - name: google
+    disabled: true          # 国内直连不稳，需要代理；有代理可改 false
+  - name: wikipedia
+    disabled: false
+  - name: github
+    disabled: false
+  # 新闻类
+  - name: bing news
+    disabled: false
+
+# ---------------- 超时与性能 ----------------
+outgoing:
+  request_timeout: 8.0
+  max_request_timeout: 12.0
+  pool_connections: 100
+  pool_maxsize: 20

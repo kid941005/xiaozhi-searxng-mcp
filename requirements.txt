@@ -1,0 +1,7 @@
+# 运行时依赖
+# mcp: 官方 Model Context Protocol SDK（1.x/2.x 均可，代码已做兼容）
+mcp>=1.0.0
+
+# 可选：安装小智官方桥接 SDK（MODE=bridge 时需要）
+# 体积较大且依赖 git，默认不装；需要时取消注释
+# git+https://github.com/dairoot/mcp-calculator
