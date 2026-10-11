@@ -16,14 +16,26 @@
 #      docker compose --profile http up -d
 #
 # 配置写在 .env（从 .env.example 复制）
-# ============================================================
+#
+# ------------------------------------------------------------
+# 镜像来源说明（重要）
+# ------------------------------------------------------------
+# 默认【直接拉取】已发布镜像 ghcr.io/kid941005/xiaozhi-searxng-mcp:latest，
+# 零构建、开箱即用。
+#
+# ⚠️ 注意：compose 里 image + build 同时存在时，会【强制本地构建】而不是拉镜像。
+#    所以 build 已注释掉，需要本地编译时把对应的 build 行取消注释即可
+#    （取消注释后 image 名会被本地构建产物覆盖，属预期行为）。
+#
+# 用 docker compose build 可只构建不启动。
+# ------------------------------------------------------------
 
 services:
 
   # ---------- MCP 搜索服务：stdio 模式（供 bridge 拉起）----------
   mcp-stdio:
-    build: .
-    image: xiaozhi-searxng-mcp:latest
+    # build: .                                   # 本地构建时取消注释
+    image: ghcr.io/kid941005/xiaozhi-searxng-mcp:latest
     container_name: xiaozhi-mcp-stdio
     restart: unless-stopped
     stdin_open: true          # stdio 模式必须保留 stdin
@@ -41,8 +53,8 @@ services:
 
   # ---------- 小智桥接：把 MCP 服务接到 xiaozhi 云端 ----------
   bridge:
-    build: .
-    image: xiaozhi-searxng-mcp:latest
+    # build: .                                   # 本地构建时取消注释
+    image: ghcr.io/kid941005/xiaozhi-searxng-mcp:latest
     container_name: xiaozhi-mcp-bridge
     restart: unless-stopped
     profiles: ["bridge", "all"]
@@ -63,8 +75,8 @@ services:
 
   # ---------- MCP 搜索服务：HTTP 模式（远程客户端直连）----------
   mcp-http:
-    build: .
-    image: xiaozhi-searxng-mcp:latest
+    # build: .                                   # 本地构建时取消注释
+    image: ghcr.io/kid941005/xiaozhi-searxng-mcp:latest
     container_name: xiaozhi-mcp-http
     restart: unless-stopped
     profiles: ["http"]
